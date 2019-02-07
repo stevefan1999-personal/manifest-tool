@@ -23,7 +23,7 @@ var inspectCmd = cli.Command{
 
 		name := c.Args().First()
 		a := getAuthInfo(c)
-		imgInspect, _, err := docker.GetImageData(a, name)
+		imgInspect, _, err := docker.GetImageData(a, name, c.GlobalBool("insecure"))
 		if err != nil {
 			logrus.Fatal(err)
 		}

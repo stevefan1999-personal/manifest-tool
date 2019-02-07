@@ -26,6 +26,10 @@ func main() {
 			Name:  "debug",
 			Usage: "enable debug output",
 		},
+		cli.BoolFlag{
+			Name:  "insecure",
+			Usage: "allow http/insecure registry communication",
+		},
 		cli.StringFlag{
 			Name:  "username",
 			Value: "",

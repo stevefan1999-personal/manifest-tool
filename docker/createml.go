@@ -41,7 +41,7 @@ type manifestPush struct {
 }
 
 // PutManifestList takes an authentication variable and a yaml spec struct and pushes an image list based on the spec
-func PutManifestList(a *types.AuthInfo, yamlInput types.YAMLInput, ignoreMissing bool) (string, int, error) {
+func PutManifestList(a *types.AuthInfo, yamlInput types.YAMLInput, ignoreMissing, insecure bool) (string, int, error) {
 	var (
 		manifestList      manifestlist.ManifestList
 		blobMountRequests []blobMount
@@ -57,7 +57,7 @@ func PutManifestList(a *types.AuthInfo, yamlInput types.YAMLInput, ignoreMissing
 	if err != nil {
 		return "", 0, fmt.Errorf("Error parsing repository name for manifest list (%s): %v", yamlInput.Image, err)
 	}
-	targetEndpoint, repoName, err := setupRepo(targetRepo)
+	targetEndpoint, repoName, err := setupRepo(targetRepo, insecure)
 	if err != nil {
 		return "", 0, fmt.Errorf("Error setting up repository endpoint and references for %q: %v", targetRef, err)
 	}
@@ -66,7 +66,7 @@ func PutManifestList(a *types.AuthInfo, yamlInput types.YAMLInput, ignoreMissing
 	// for the constituent images:
 	logrus.Info("Retrieving digests of images...")
 	for _, img := range yamlInput.Manifests {
-		mfstData, repoInfo, err := GetImageData(a, img.Image)
+		mfstData, repoInfo, err := GetImageData(a, img.Image, insecure)
 		if err != nil {
 			// if ignoreMissing is true, we will skip this error and simply
 			// log a warning that we couldn't find it in the registry
@@ -321,10 +321,12 @@ func createManifestURLFromRef(targetRef reference.Named, urlBuilder *v2.URLBuild
 	return manifestURL, nil
 }
 
-func setupRepo(repoInfo *registry.RepositoryInfo) (registry.APIEndpoint, string, error) {
+func setupRepo(repoInfo *registry.RepositoryInfo, insecure bool) (registry.APIEndpoint, string, error) {
 
 	options := registry.ServiceOptions{}
-	options.InsecureRegistries = append(options.InsecureRegistries, "0.0.0.0/0")
+	if insecure {
+		options.InsecureRegistries = append(options.InsecureRegistries, reference.Domain(repoInfo.Name))
+	}
 	registryService, err := registry.NewService(options)
 	if err != nil {
 		return registry.APIEndpoint{}, "", err
@@ -337,7 +339,17 @@ func setupRepo(repoInfo *registry.RepositoryInfo) (registry.APIEndpoint, string,
 	logrus.Debugf("endpoints: %v", endpoints)
 	// take highest priority endpoint
 	endpoint := endpoints[0]
+	if !repoInfo.Index.Secure {
+		for _, ep := range endpoints {
+			if ep.URL.Scheme == "http" {
+				endpoint = ep
+			}
+		}
+	}
 
+	if insecure {
+		endpoint.TLSConfig.InsecureSkipVerify = true
+	}
 	repoName := repoInfo.Name.Name()
 	// If endpoint does not support CanonicalName, use the Name's path instead
 	if endpoint.TrimHostname {

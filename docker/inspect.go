@@ -149,7 +149,7 @@ func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
 }
 
 // GetImageData takes registry authentication information and a name of the image to return information about
-func GetImageData(a *types.AuthInfo, name string) ([]types.ImageInspect, *registry.RepositoryInfo, error) {
+func GetImageData(a *types.AuthInfo, name string, insecure bool) ([]types.ImageInspect, *registry.RepositoryInfo, error) {
 	if err := validateName(name); err != nil {
 		return nil, nil, err
 	}
@@ -169,7 +169,9 @@ func GetImageData(a *types.AuthInfo, name string) ([]types.ImageInspect, *regist
 		return nil, nil, err
 	}
 	options := registry.ServiceOptions{}
-	options.InsecureRegistries = append(options.InsecureRegistries, "0.0.0.0/0")
+	if insecure {
+		options.InsecureRegistries = append(options.InsecureRegistries, reference.Domain(repoInfo.Name))
+	}
 	options.V2Only = true
 	registryService, err := registry.NewService(options)
 	if err != nil {
@@ -197,12 +199,19 @@ func GetImageData(a *types.AuthInfo, name string) ([]types.ImageInspect, *regist
 			logrus.Debugf("Skipping v1 endpoint %s; manifest list requires v2", endpoint.URL)
 			continue
 		}
+		if !repoInfo.Index.Secure && endpoint.URL.Scheme == "https" {
+			logrus.Debugf("Skipping https endpoint for insecure registry")
+			continue
+		}
 
 		if endpoint.URL.Scheme != "https" {
 			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
 				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
 				continue
 			}
+		}
+		if insecure {
+			endpoint.TLSConfig.InsecureSkipVerify = true
 		}
 
 		logrus.Debugf("Trying to fetch image manifest of %s repository from %s %s", repoInfo.Name.Name(), endpoint.URL, endpoint.Version)
