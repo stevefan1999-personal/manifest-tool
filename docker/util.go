@@ -18,7 +18,10 @@ var validOSArch = map[string]bool{
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
+	"linux/arm/v5":    true,
+	"linux/arm/v7":    true,
 	"linux/arm64":     true,
+	"linux/arm64/v8":  true,
 	"linux/ppc64":     true,
 	"linux/ppc64le":   true,
 	"linux/mips64":    true,
@@ -38,8 +41,13 @@ var validOSArch = map[string]bool{
 	"windows/arm":     true,
 }
 
-func isValidOSArch(os string, arch string) bool {
+func isValidOSArch(os string, arch string, variant string) bool {
 	osarch := fmt.Sprintf("%s/%s", os, arch)
+
+	if variant != "" {
+		osarch = fmt.Sprintf("%s/%s/%s", os, arch, variant)
+	}
+
 	_, ok := validOSArch[osarch]
 	return ok
 }
