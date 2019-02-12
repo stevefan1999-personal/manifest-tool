@@ -107,10 +107,6 @@ func PutManifestList(a *types.AuthInfo, yamlInput types.YAMLInput, ignoreMissing
 			img.Platform.OSFeatures = imgMfst.OSFeatures
 		}
 
-		if imgMfst.Variant != "" {
-			img.Platform.Variant = imgMfst.Variant
-		}
-
 		// validate os/arch input
 		if !isValidOSArch(img.Platform.OS, img.Platform.Architecture, img.Platform.Variant) {
 			return "", 0, fmt.Errorf("Manifest entry for image %s has unsupported os/arch or os/arch/variant combination: %s/%s/%s", img.Image, img.Platform.OS, img.Platform.Architecture, img.Platform.Variant)
