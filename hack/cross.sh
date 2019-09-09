@@ -47,7 +47,7 @@ for PLATFORM in "${PLATFORMS[@]}"; do
 
   [ "${GOOS}" = 'linux' ] && _LDFLAGS="${LDFLAGS}" || _LDFLAGS="${LDFLAGS_OTHER}"
 
-  CMD="${ARCH_ENV} CGO_ENABLED=0 GO_EXTLINK_ENABLED=0 go build -ldflags \"${_LDFLAGS}\" -o ${BIN_FILENAME} -tags netgo -installsuffix netgo ."
+  CMD="${ARCH_ENV} CGO_ENABLED=0 GO_EXTLINK_ENABLED=0 go build -ldflags \"${_LDFLAGS}\" -o ${BIN_FILENAME} -tags netgo -installsuffix netgo github.com/estesp/manifest-tool/cmd/manifest-tool"
   echo "${CMD}"
   eval "${CMD}" || FAILURES=( "${FAILURES[@]}" "${PLATFORM}" )
 done
