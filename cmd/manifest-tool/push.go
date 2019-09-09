@@ -6,11 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/estesp/manifest-tool/docker"
-	"github.com/estesp/manifest-tool/types"
-	yaml "gopkg.in/yaml.v2"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/docker/distribution/manifest/manifestlist"
 )
@@ -38,9 +36,9 @@ var pushCmd = cli.Command{
 			Action: func(c *cli.Context) {
 
 				filePath := c.Args().First()
-				a := getAuthInfo(c)
-				ignoreMissing := c.Bool("ignore-missing")
-				var yamlInput types.YAMLInput
+				//a := getAuthInfo(c)
+				//ignoreMissing := c.Bool("ignore-missing")
+				var yamlInput YAMLInput
 
 				filename, err := filepath.Abs(filePath)
 				if err != nil {
@@ -55,7 +53,9 @@ var pushCmd = cli.Command{
 					logrus.Fatalf(fmt.Sprintf("Can't unmarshal YAML file %q: %v", filePath, err))
 				}
 
-				digest, l, err := docker.PutManifestList(a, yamlInput, ignoreMissing, c.GlobalBool("insecure"))
+				digest := ""
+				l := 10
+				//digest, l, err := docker.PutManifestList(a, yamlInput, ignoreMissing, c.GlobalBool("insecure"))
 				if err != nil {
 					logrus.Fatal(err)
 				}
@@ -85,12 +85,12 @@ var pushCmd = cli.Command{
 			},
 			Action: func(c *cli.Context) {
 
-				a := getAuthInfo(c)
+				//a := getAuthInfo(c)
 				platforms := c.String("platforms")
 				templ := c.String("template")
 				target := c.String("target")
-				ignoreMissing := c.Bool("ignore-missing")
-				srcImages := []types.ManifestEntry{}
+				//ignoreMissing := c.Bool("ignore-missing")
+				srcImages := []ManifestEntry{}
 
 				if len(platforms) == 0 || len(templ) == 0 || len(target) == 0 {
 					logrus.Fatalf("You must specify all three arguments --platforms, --template and --target")
@@ -108,7 +108,7 @@ var pushCmd = cli.Command{
 					if len(osArchArr) == 3 {
 						variant = osArchArr[2]
 					}
-					srcImages = append(srcImages, types.ManifestEntry{
+					srcImages = append(srcImages, ManifestEntry{
 						Image: strings.Replace(strings.Replace(strings.Replace(templ, "ARCH", arch, 1), "OS", os, 1), "VARIANT", variant, 1),
 						Platform: manifestlist.PlatformSpec{
 							OS:           os,
@@ -117,13 +117,16 @@ var pushCmd = cli.Command{
 						},
 					})
 				}
-
-				yamlInput := types.YAMLInput{
-					Image:     target,
-					Manifests: srcImages,
-				}
-
-				digest, l, err := docker.PutManifestList(a, yamlInput, ignoreMissing, c.GlobalBool("insecure"))
+				/*
+					yamlInput := YAMLInput{
+						Image:     target,
+						Manifests: srcImages,
+					}
+				*/
+				//digest, l, err := docker.PutManifestList(a, yamlInput, ignoreMissing, c.GlobalBool("insecure"))
+				digest := ""
+				l := 10
+				var err error
 				if err != nil {
 					logrus.Fatal(err)
 				}
@@ -131,12 +134,4 @@ var pushCmd = cli.Command{
 			},
 		},
 	},
-}
-
-func getAuthInfo(c *cli.Context) *types.AuthInfo {
-	return &types.AuthInfo{
-		Username:  c.GlobalString("username"),
-		Password:  c.GlobalString("password"),
-		DockerCfg: c.GlobalString("docker-cfg"),
-	}
 }
