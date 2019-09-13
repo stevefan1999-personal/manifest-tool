@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/deislabs/oras/pkg/content"
 	"github.com/estesp/manifest-tool/pkg/registry"
 	"github.com/estesp/manifest-tool/pkg/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,17 +30,29 @@ var inspectCmd = cli.Command{
 			logrus.Fatal(err)
 		}
 
+		memoryStore := content.NewMemoryStore()
 		// a := getAuthInfo(c)
-		descriptor, err := registry.Fetch(context.Background(), types.NewRequest(imageRef, "", allMediaTypes()))
+		descriptor, err := registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes()))
 		if err != nil {
-			logrus.Fatal(err)
+			logrus.Error(err)
 		}
+		_, db, _ := memoryStore.Get(descriptor)
 		switch descriptor.MediaType {
 		case ocispec.MediaTypeImageIndex, types.MediaTypeDockerSchema2ManifestList:
-			fmt.Printf("OCI index/Docker v2 manifest list")
+			fmt.Printf("OCI index/Docker v2 manifest list: %s\n", descriptor.Digest)
+			var idx ocispec.Index
+			if err := json.Unmarshal(db, &idx); err != nil {
+				logrus.Fatal(err)
+			}
+			fmt.Printf("%v\n", idx)
 
 		case ocispec.MediaTypeImageManifest, types.MediaTypeDockerSchema2Manifest:
-			fmt.Printf("OCI image manifest")
+			fmt.Printf("OCI image manifest: %s\n", descriptor.Digest)
+			var man ocispec.Manifest
+			if err := json.Unmarshal(db, &man); err != nil {
+				logrus.Fatal(err)
+			}
+			fmt.Printf("%v\n", man)
 		}
 
 		if c.Bool("raw") {
