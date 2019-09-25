@@ -13,8 +13,6 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/gorilla/mux v1.7.4-0.20190830121156-884b5ffcbd3a // indirect
 	github.com/mattn/go-shellwords v1.0.7-0.20190814065502-51d68c780a02 // indirect
-	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
-	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/opencontainers/runc v1.0.0-rc6.0.20181203215513-96ec2177ae84 // indirect

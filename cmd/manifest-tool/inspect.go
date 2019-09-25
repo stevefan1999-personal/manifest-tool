@@ -36,24 +36,6 @@ var inspectCmd = cli.Command{
 		if err != nil {
 			logrus.Error(err)
 		}
-		_, db, _ := memoryStore.Get(descriptor)
-		switch descriptor.MediaType {
-		case ocispec.MediaTypeImageIndex, types.MediaTypeDockerSchema2ManifestList:
-			fmt.Printf("OCI index/Docker v2 manifest list: %s\n", descriptor.Digest)
-			var idx ocispec.Index
-			if err := json.Unmarshal(db, &idx); err != nil {
-				logrus.Fatal(err)
-			}
-			fmt.Printf("%v\n", idx)
-
-		case ocispec.MediaTypeImageManifest, types.MediaTypeDockerSchema2Manifest:
-			fmt.Printf("OCI image manifest: %s\n", descriptor.Digest)
-			var man ocispec.Manifest
-			if err := json.Unmarshal(db, &man); err != nil {
-				logrus.Fatal(err)
-			}
-			fmt.Printf("%v\n", man)
-		}
 
 		if c.Bool("raw") {
 			out, err := json.Marshal(descriptor)
@@ -63,43 +45,67 @@ var inspectCmd = cli.Command{
 			fmt.Println(string(out))
 			return
 		}
-		// output basic informative details about the image
-		/*
-			if len(imgInspect) == 1 {
-				// this is a basic single manifest
-				fmt.Printf("%s: manifest type: %s\n", name, imgInspect[0].MediaType)
-				fmt.Printf("      Digest: %s\n", imgInspect[0].Digest)
-				fmt.Printf("Architecture: %s\n", imgInspect[0].Architecture)
-				fmt.Printf("          OS: %s\n", imgInspect[0].Os)
-				fmt.Printf("    # Layers: %d\n", len(imgInspect[0].Layers))
-				for i, digest := range imgInspect[0].Layers {
-					fmt.Printf("      layer %d: digest = %s\n", i+1, digest)
-				}
-				return
+		_, db, _ := memoryStore.Get(descriptor)
+		switch descriptor.MediaType {
+		case ocispec.MediaTypeImageIndex, types.MediaTypeDockerSchema2ManifestList:
+			// this is a multi-platform image descriptor; marshal to Index type
+			var idx ocispec.Index
+			if err := json.Unmarshal(db, &idx); err != nil {
+				logrus.Fatal(err)
 			}
-			// more than one response--this is a manifest list
-			fmt.Printf("Name:   %s (Type: %s)\n", name, imgInspect[0].MediaType)
-			fmt.Printf("Digest: %s\n", imgInspect[0].Digest)
-			fmt.Printf(" * Contains %d manifest references:\n", len(imgInspect)-1)
-			for i, img := range imgInspect[1:] {
-				fmt.Printf("%d    Mfst Type: %s\n", i+1, img.MediaType)
-				fmt.Printf("%d       Digest: %s\n", i+1, img.Digest)
-				fmt.Printf("%d  Mfst Length: %d\n", i+1, img.Size)
-				fmt.Printf("%d     Platform:\n", i+1)
-				fmt.Printf("%d           -      OS: %s\n", i+1, img.Platform.OS)
-				fmt.Printf("%d           - OS Vers: %s\n", i+1, img.Platform.OSVersion)
-				fmt.Printf("%d           - OS Feat: %s\n", i+1, img.Platform.OSFeatures)
-				fmt.Printf("%d           -    Arch: %s\n", i+1, img.Platform.Architecture)
-				fmt.Printf("%d           - Variant: %s\n", i+1, img.Platform.Variant)
-				fmt.Printf("%d           - Feature: %s\n", i+1, strings.Join(img.Platform.Features, ","))
-				fmt.Printf("%d     # Layers: %d\n", i+1, len(img.Layers))
-				for j, digest := range img.Layers {
-					fmt.Printf("         layer %d: digest = %s\n", j+1, digest)
-				}
-				fmt.Println()
+			outputList(name, memoryStore, descriptor, idx)
+		case ocispec.MediaTypeImageManifest, types.MediaTypeDockerSchema2Manifest:
+			var man ocispec.Manifest
+			if err := json.Unmarshal(db, &man); err != nil {
+				logrus.Fatal(err)
 			}
-		*/
+			outputImage(name, descriptor, man)
+		default:
+			logrus.Errorf("Unknown descriptor type: %s", descriptor.MediaType)
+		}
 	},
+}
+
+func outputList(name string, cs *content.Memorystore, descriptor ocispec.Descriptor, index ocispec.Index) {
+	fmt.Printf("Name:   %s (Type: %s)\n", name, descriptor.MediaType)
+	fmt.Printf("Digest: %s\n", descriptor.Digest)
+	fmt.Printf(" * Contains %d manifest references:\n", len(index.Manifests))
+	for i, img := range index.Manifests {
+		fmt.Printf("%d    Mfst Type: %s\n", i+1, img.MediaType)
+		fmt.Printf("%d       Digest: %s\n", i+1, img.Digest)
+		fmt.Printf("%d  Mfst Length: %d\n", i+1, img.Size)
+		_, db, _ := cs.Get(img)
+		switch img.MediaType {
+		case ocispec.MediaTypeImageManifest, types.MediaTypeDockerSchema2Manifest:
+			var man ocispec.Manifest
+			if err := json.Unmarshal(db, &man); err != nil {
+				logrus.Fatal(err)
+			}
+			fmt.Printf("%d     Platform:\n", i+1)
+			fmt.Printf("%d           -      OS: %s\n", i+1, img.Platform.OS)
+			fmt.Printf("%d           - OS Vers: %s\n", i+1, img.Platform.OSVersion)
+			fmt.Printf("%d           - OS Feat: %s\n", i+1, img.Platform.OSFeatures)
+			fmt.Printf("%d           -    Arch: %s\n", i+1, img.Platform.Architecture)
+			fmt.Printf("%d           - Variant: %s\n", i+1, img.Platform.Variant)
+			fmt.Printf("%d     # Layers: %d\n", i+1, len(man.Layers))
+			for j, layer := range man.Layers {
+				fmt.Printf("         layer %d: digest = %s\n", j+1, layer.Digest)
+			}
+			fmt.Println()
+		default:
+			fmt.Printf("Unknown media type for further display: %s\n", img.MediaType)
+		}
+
+	}
+}
+
+func outputImage(name string, descriptor ocispec.Descriptor, manifest ocispec.Manifest) {
+	fmt.Printf("%s: manifest type: %s\n", name, descriptor.MediaType)
+	fmt.Printf("      Digest: %s\n", descriptor.Digest)
+	fmt.Printf("    # Layers: %d\n", len(manifest.Layers))
+	for i, layer := range manifest.Layers {
+		fmt.Printf("      layer %d: digest = %s\n", i+1, layer.Digest)
+	}
 }
 
 func allMediaTypes() []string {
