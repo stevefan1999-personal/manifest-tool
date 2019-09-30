@@ -59,7 +59,12 @@ var inspectCmd = cli.Command{
 			if err := json.Unmarshal(db, &man); err != nil {
 				logrus.Fatal(err)
 			}
-			outputImage(name, descriptor, man)
+			_, cb, _ := memoryStore.Get(man.Config)
+			var conf ocispec.Image
+			if err := json.Unmarshal(cb, &conf); err != nil {
+				logrus.Fatal(err)
+			}
+			outputImage(name, descriptor, man, conf)
 		default:
 			logrus.Errorf("Unknown descriptor type: %s", descriptor.MediaType)
 		}
@@ -99,9 +104,11 @@ func outputList(name string, cs *content.Memorystore, descriptor ocispec.Descrip
 	}
 }
 
-func outputImage(name string, descriptor ocispec.Descriptor, manifest ocispec.Manifest) {
+func outputImage(name string, descriptor ocispec.Descriptor, manifest ocispec.Manifest, config ocispec.Image) {
 	fmt.Printf("%s: manifest type: %s\n", name, descriptor.MediaType)
 	fmt.Printf("      Digest: %s\n", descriptor.Digest)
+	fmt.Printf("          OS: %s\n", config.OS)
+	fmt.Printf("        Arch: %s\n", config.Architecture)
 	fmt.Printf("    # Layers: %d\n", len(manifest.Layers))
 	for i, layer := range manifest.Layers {
 		fmt.Printf("      layer %d: digest = %s\n", i+1, layer.Digest)
