@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
+	auth "github.com/deislabs/oras/pkg/auth/docker"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/reference"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -107,6 +112,26 @@ func splitHostname(name string) (hostname, remoteName string) {
 		remoteName = DefaultRepoPrefix + remoteName
 	}
 	return
+}
+
+func newResolver(username, password string, configs ...string) remotes.Resolver {
+	if username != "" || password != "" {
+		return docker.NewResolver(docker.ResolverOptions{
+			Credentials: func(hostName string) (string, string, error) {
+				return username, password, nil
+			},
+		})
+	}
+	cli, err := auth.NewClient(configs...)
+	if err != nil {
+		logrus.Warnf("Error loading auth file: %v", err)
+	}
+	resolver, err := cli.Resolver(context.Background())
+	if err != nil {
+		logrus.Warnf("Error loading resolver: %v", err)
+		resolver = docker.NewResolver(docker.ResolverOptions{})
+	}
+	return resolver
 }
 
 func isValidOSArch(os string, arch string, variant string) bool {

@@ -7,19 +7,18 @@ import (
 	ccontent "github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
-	"github.com/containerd/containerd/remotes/docker"
 	"github.com/deislabs/oras/pkg/content"
 	"github.com/estesp/manifest-tool/pkg/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Fetch uses a registry (distribution spec) API to retrieve a specific image manifest from a registry
-func Fetch(ctx context.Context, cs *content.Memorystore, image *types.Request) (ocispec.Descriptor, error) {
+func Fetch(ctx context.Context, cs *content.Memorystore, req *types.Request) (ocispec.Descriptor, error) {
 
-	resolver := docker.NewResolver(docker.ResolverOptions{})
+	resolver := req.Resolver()
 
 	// Retrieve manifest from registry
-	name, desc, err := resolver.Resolve(ctx, image.Reference().String())
+	name, desc, err := resolver.Resolve(ctx, req.Reference().String())
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}

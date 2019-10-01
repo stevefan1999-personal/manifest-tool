@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"github.com/deislabs/oras/pkg/content"
 	"github.com/estesp/manifest-tool/pkg/registry"
@@ -31,8 +32,8 @@ var inspectCmd = cli.Command{
 		}
 
 		memoryStore := content.NewMemoryStore()
-		// a := getAuthInfo(c)
-		descriptor, err := registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes()))
+		resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
+		descriptor, err := registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes(), resolver))
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -105,7 +106,7 @@ func outputList(name string, cs *content.Memorystore, descriptor ocispec.Descrip
 }
 
 func outputImage(name string, descriptor ocispec.Descriptor, manifest ocispec.Manifest, config ocispec.Image) {
-	fmt.Printf("%s: manifest type: %s\n", name, descriptor.MediaType)
+	fmt.Printf("Name: %s (Type: %s)\n", name, descriptor.MediaType)
 	fmt.Printf("      Digest: %s\n", descriptor.Digest)
 	fmt.Printf("          OS: %s\n", config.OS)
 	fmt.Printf("        Arch: %s\n", config.Architecture)
