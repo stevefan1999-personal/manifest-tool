@@ -11,7 +11,6 @@ import (
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/reference"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 )
 
 // YAMLInput represents the YAML format input to the pushml
@@ -27,13 +26,6 @@ type YAMLInput struct {
 type ManifestEntry struct {
 	Image    string
 	Platform manifestlist.PlatformSpec
-}
-
-// AuthInfo holds information about how manifest-tool should connect and authenticate to the docker registry
-type AuthInfo struct {
-	Username  string
-	Password  string
-	DockerCfg string
 }
 
 const (
@@ -143,12 +135,4 @@ func isValidOSArch(os string, arch string, variant string) bool {
 
 	_, ok := validOSArch[osarch]
 	return ok
-}
-
-func getAuthInfo(c *cli.Context) *AuthInfo {
-	return &AuthInfo{
-		Username:  c.GlobalString("username"),
-		Password:  c.GlobalString("password"),
-		DockerCfg: c.GlobalString("docker-cfg"),
-	}
 }

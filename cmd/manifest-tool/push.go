@@ -36,7 +36,6 @@ var pushCmd = cli.Command{
 			Action: func(c *cli.Context) {
 
 				filePath := c.Args().First()
-				//a := getAuthInfo(c)
 				//ignoreMissing := c.Bool("ignore-missing")
 				var yamlInput YAMLInput
 
