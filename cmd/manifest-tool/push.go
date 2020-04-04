@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/deislabs/oras/pkg/content"
-	"github.com/docker/distribution/reference"
 	"github.com/estesp/manifest-tool/pkg/types"
 
+	"github.com/deislabs/oras/pkg/content"
+	"github.com/docker/distribution/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -221,7 +221,6 @@ func resolvePlatform(descriptor ocispec.Descriptor, img types.ManifestEntry, img
 			platform.Architecture = imgConfig.Architecture
 		}
 	}
-
 	// Windows: if the origin image has OSFeature and/or OSVersion information, and
 	// these values were not specified in the creation YAML, then
 	// retain the origin values in the Platform definition for the manifest list:
