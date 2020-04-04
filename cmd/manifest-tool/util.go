@@ -8,25 +8,9 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	auth "github.com/deislabs/oras/pkg/auth/docker"
-	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/reference"
 	"github.com/sirupsen/logrus"
 )
-
-// YAMLInput represents the YAML format input to the pushml
-// command.
-type YAMLInput struct {
-	Image     string
-	Tags      []string
-	Manifests []ManifestEntry
-}
-
-// ManifestEntry represents an entry in the list of manifests to
-// be combined into a manifest list, provided via the YAML input
-type ManifestEntry struct {
-	Image    string
-	Platform manifestlist.PlatformSpec
-}
 
 const (
 	// DefaultHostname is the default built-in registry (DockerHub)

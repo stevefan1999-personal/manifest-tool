@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/deislabs/oras/pkg/content"
+	"github.com/docker/distribution/reference"
 	"github.com/estesp/manifest-tool/pkg/registry"
 	"github.com/estesp/manifest-tool/pkg/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -32,8 +33,7 @@ var inspectCmd = cli.Command{
 		}
 
 		memoryStore := content.NewMemoryStore()
-		resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
-		descriptor, err := registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes(), resolver))
+		descriptor, err := fetchDescriptor(c, memoryStore, imageRef)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -123,4 +123,9 @@ func allMediaTypes() []string {
 		ocispec.MediaTypeImageManifest,
 		ocispec.MediaTypeImageIndex,
 	}
+}
+
+func fetchDescriptor(c *cli.Context, memoryStore *content.Memorystore, imageRef reference.Named) (ocispec.Descriptor, error) {
+	resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
+	return registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes(), resolver))
 }
