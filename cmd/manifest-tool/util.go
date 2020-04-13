@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/containerd/containerd/remotes"
@@ -102,7 +103,7 @@ func newResolver(username, password string, configs ...string) remotes.Resolver 
 	if err != nil {
 		logrus.Warnf("Error loading auth file: %v", err)
 	}
-	resolver, err := cli.Resolver(context.Background())
+	resolver, err := cli.Resolver(context.Background(), http.DefaultClient, false)
 	if err != nil {
 		logrus.Warnf("Error loading resolver: %v", err)
 		resolver = docker.NewResolver(docker.ResolverOptions{})
