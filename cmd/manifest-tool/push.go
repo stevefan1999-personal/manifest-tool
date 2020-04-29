@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 
+	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/estesp/manifest-tool/pkg/types"
 
-	"github.com/deislabs/oras/pkg/content"
 	"github.com/docker/distribution/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -132,12 +133,16 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 		return fmt.Errorf("Error parsing name for manifest list (%s): %v", input.Image, err)
 	}
 
+	resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), c.GlobalBool("insecure"),
+		filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
+
 	manifestList := types.ManifestList{
 		Name:      input.Image,
 		Reference: targetRef,
+		Resolver:  resolver,
 	}
 	// create an in-memory store for OCI descriptors and content used during the push operation
-	memoryStore := content.NewMemoryStore()
+	memoryStore := store.NewMemoryStore()
 
 	logrus.Info("Retrieving digests of member images")
 	for _, img := range input.Manifests {
@@ -176,16 +181,19 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 		if err := json.Unmarshal(cb, &imgConfig); err != nil {
 			return fmt.Errorf("Could not unmarshal config object from descriptor for image '%s': %v", img.Image, err)
 		}
+		// set labels for handling distribution source to get automatic cross-repo blob mounting for the layers
+		info, _ := memoryStore.Info(context.TODO(), descriptor.Digest)
+		for _, layer := range man.Layers {
+			info.Digest = layer.Digest
+			memoryStore.Update(context.TODO(), info, "")
+		}
 
 		// finalize the platform object that will be used to push with this manifest
-		platform, err := resolvePlatform(descriptor, img, imgConfig)
+		descriptor.Platform, err = resolvePlatform(descriptor, img, imgConfig)
 		manifest := types.Manifest{
-			PushRef: false,
+			Descriptor: descriptor,
+			PushRef:    false,
 		}
-		manifest.Platform = platform
-		manifest.Digest = descriptor.Digest
-		manifest.Size = descriptor.Size
-		manifest.MediaType = descriptor.MediaType
 
 		if reference.Path(ref) != reference.Path(targetRef) {
 			// the target manifest list/index is located in a different repo; need to push
@@ -210,7 +218,10 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 }
 
 func resolvePlatform(descriptor ocispec.Descriptor, img types.ManifestEntry, imgConfig types.Image) (*ocispec.Platform, error) {
-	var platform *ocispec.Platform
+	platform := descriptor.Platform
+	if platform == nil {
+		platform = &ocispec.Platform{}
+	}
 	// fill os/arch from inspected image if not specified in input YAML
 	if img.Platform.OS == "" && img.Platform.Architecture == "" {
 		// prefer a full platform object, if one is already available (and appears to have meaningful content)

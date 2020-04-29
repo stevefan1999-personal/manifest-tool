@@ -6,13 +6,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 )
 
-const (
-	// MediaTypeDockerSchema2Manifest is the Docker v2.2 schema media type for a manifest object
-	MediaTypeDockerSchema2Manifest = "application/vnd.docker.distribution.manifest.v2+json"
-	// MediaTypeDockerSchema2ManifestList is the Docker v2.2 schema media type for a manifest list object
-	MediaTypeDockerSchema2ManifestList = "application/vnd.docker.distribution.manifest.list.v2+json"
-)
-
 // Request represents a registry reference and (optional) digest to a specific container manifest
 type Request struct {
 	reference  reference.Named

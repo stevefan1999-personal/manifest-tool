@@ -7,13 +7,14 @@ import (
 	ccontent "github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
-	"github.com/deislabs/oras/pkg/content"
+	"github.com/containerd/containerd/remotes/docker"
+	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/estesp/manifest-tool/pkg/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Fetch uses a registry (distribution spec) API to retrieve a specific image manifest from a registry
-func Fetch(ctx context.Context, cs *content.Memorystore, req *types.Request) (ocispec.Descriptor, error) {
+func Fetch(ctx context.Context, cs *store.MemoryStore, req *types.Request) (ocispec.Descriptor, error) {
 
 	resolver := req.Resolver()
 
@@ -32,9 +33,15 @@ func Fetch(ctx context.Context, cs *content.Memorystore, req *types.Request) (oc
 	}
 	defer r.Close()
 
+	appendDistSrcLabelHandler, err := docker.AppendDistributionSourceLabel(cs, req.Reference().String())
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
 	handlers := []images.Handler{
 		remotes.FetchHandler(cs, fetcher),
 		nonLayerChildHandler(cs),
+		appendDistSrcLabelHandler,
 	}
 	// This traverses the OCI descriptor to fetch the image and store it into the local store initialized above.
 	// All content hashes are verified in this step
@@ -73,6 +80,16 @@ func nonLayerChildHandler(provider ccontent.Provider) images.HandlerFunc {
 			}
 
 			descs = append(descs, index.Manifests...)
+		case ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerGzip, types.MediaTypeDockerTarLayer, types.MediaTypeDockerTarGzipLayer:
+			// we want to save the descriptor info about layers in our content store
+			// in case we are going to handle push of a manifest list (will need to handle
+			// have the details for doing blob mounting on manifest list/index push)
+			cs, ok := provider.(*store.MemoryStore)
+			if ok {
+				// a slight hack to get the info about layers without the actual layer content
+				// into our content store
+				cs.Set(desc, []byte{})
+			}
 		default:
 			// if we aren't at a manifest or index/manifestlist then we can stop walking
 			return nil, nil

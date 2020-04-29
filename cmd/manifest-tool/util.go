@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strings"
@@ -91,22 +92,35 @@ func splitHostname(name string) (hostname, remoteName string) {
 	return
 }
 
-func newResolver(username, password string, configs ...string) remotes.Resolver {
-	if username != "" || password != "" {
-		return docker.NewResolver(docker.ResolverOptions{
-			Credentials: func(hostName string) (string, string, error) {
-				return username, password, nil
+func newResolver(username, password string, insecure bool, configs ...string) remotes.Resolver {
+
+	opts := docker.ResolverOptions{
+		PlainHTTP: false,
+	}
+	client := http.DefaultClient
+	if insecure {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
 			},
-		})
+		}
+	}
+	opts.Client = client
+
+	if username != "" || password != "" {
+		opts.Credentials = func(hostName string) (string, string, error) {
+			return username, password, nil
+		}
+		return docker.NewResolver(opts)
 	}
 	cli, err := auth.NewClient(configs...)
 	if err != nil {
 		logrus.Warnf("Error loading auth file: %v", err)
 	}
-	resolver, err := cli.Resolver(context.Background(), http.DefaultClient, false)
+	resolver, err := cli.Resolver(context.Background(), client, false)
 	if err != nil {
 		logrus.Warnf("Error loading resolver: %v", err)
-		resolver = docker.NewResolver(docker.ResolverOptions{})
+		resolver = docker.NewResolver(opts)
 	}
 	return resolver
 }

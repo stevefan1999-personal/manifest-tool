@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/deislabs/oras/pkg/content"
 	"github.com/docker/distribution/reference"
 	"github.com/estesp/manifest-tool/pkg/registry"
+	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/estesp/manifest-tool/pkg/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -32,7 +32,7 @@ var inspectCmd = cli.Command{
 			logrus.Fatal(err)
 		}
 
-		memoryStore := content.NewMemoryStore()
+		memoryStore := store.NewMemoryStore()
 		descriptor, err := fetchDescriptor(c, memoryStore, imageRef)
 		if err != nil {
 			logrus.Error(err)
@@ -72,7 +72,7 @@ var inspectCmd = cli.Command{
 	},
 }
 
-func outputList(name string, cs *content.Memorystore, descriptor ocispec.Descriptor, index ocispec.Index) {
+func outputList(name string, cs *store.MemoryStore, descriptor ocispec.Descriptor, index ocispec.Index) {
 	fmt.Printf("Name:   %s (Type: %s)\n", name, descriptor.MediaType)
 	fmt.Printf("Digest: %s\n", descriptor.Digest)
 	fmt.Printf(" * Contains %d manifest references:\n", len(index.Manifests))
@@ -125,7 +125,8 @@ func allMediaTypes() []string {
 	}
 }
 
-func fetchDescriptor(c *cli.Context, memoryStore *content.Memorystore, imageRef reference.Named) (ocispec.Descriptor, error) {
-	resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
+func fetchDescriptor(c *cli.Context, memoryStore *store.MemoryStore, imageRef reference.Named) (ocispec.Descriptor, error) {
+	resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), c.GlobalBool("insecure"),
+		filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
 	return registry.Fetch(context.Background(), memoryStore, types.NewRequest(imageRef, "", allMediaTypes(), resolver))
 }
