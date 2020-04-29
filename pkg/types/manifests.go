@@ -2,11 +2,15 @@ package types
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/distribution/reference"
 	"github.com/estesp/manifest-tool/pkg/store"
+	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -62,7 +66,39 @@ func (m ManifestList) Push(ms *store.MemoryStore) (string, int, error) {
 			logrus.Infof("pushed manifest component reference (%s) to target namespace: %s", man.Descriptor.Digest.String(), ref.String())
 		}
 	}
-	return "", 0, nil
+	// build the manifest list/index entry to be pushed and save it in the content store
+	desc, indexJSON, err := m.buildManifest()
+	if err != nil {
+		return "", 0, errors.Wrap(err, "Error creating manifest list/index JSON")
+	}
+	ms.Set(desc, indexJSON)
+
+	if err := push(m.Reference, desc, m.Resolver, ms); err != nil {
+		return "", 0, errors.Wrapf(err, "Error pushing manifest list/index to registry: %s", desc.Digest.String())
+	}
+	return desc.Digest.String(), int(desc.Size), nil
+}
+
+func (m *ManifestList) buildManifest() (ocispec.Descriptor, []byte, error) {
+	index := ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+	}
+	for _, man := range m.Manifests {
+		index.Manifests = append(index.Manifests, man.Descriptor)
+	}
+	bytes, err := json.MarshalIndent(index, "", "  ")
+	fmt.Printf("JSON index: %s\n", string(bytes))
+	if err != nil {
+		return ocispec.Descriptor{}, []byte{}, err
+	}
+	desc := ocispec.Descriptor{
+		Digest:    digest.FromBytes(bytes),
+		MediaType: ocispec.MediaTypeImageIndex,
+		Size:      int64(len(bytes)),
+	}
+	return desc, bytes, nil
 }
 
 func push(ref reference.Reference, desc ocispec.Descriptor, resolver remotes.Resolver, ms *store.MemoryStore) error {

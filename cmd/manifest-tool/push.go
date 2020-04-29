@@ -190,6 +190,9 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 
 		// finalize the platform object that will be used to push with this manifest
 		descriptor.Platform, err = resolvePlatform(descriptor, img, imgConfig)
+		if err != nil {
+			return fmt.Errorf("Unable to create platform object for manifest %s: %v", descriptor.Digest.String(), err)
+		}
 		manifest := types.Manifest{
 			Descriptor: descriptor,
 			PushRef:    false,
@@ -218,7 +221,7 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 }
 
 func resolvePlatform(descriptor ocispec.Descriptor, img types.ManifestEntry, imgConfig types.Image) (*ocispec.Platform, error) {
-	platform := descriptor.Platform
+	platform := &img.Platform
 	if platform == nil {
 		platform = &ocispec.Platform{}
 	}
