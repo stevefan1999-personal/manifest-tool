@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/docker/distribution/reference"
 	"github.com/estesp/manifest-tool/pkg/registry"
 	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/estesp/manifest-tool/pkg/types"
+
+	"github.com/docker/distribution/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"

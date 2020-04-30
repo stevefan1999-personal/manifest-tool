@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/estesp/manifest-tool/pkg/registry"
 	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/estesp/manifest-tool/pkg/types"
 
@@ -217,7 +218,7 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 		return fmt.Errorf("all entries were skipped due to missing source image references; no manifest list to push")
 	}
 
-	digest, len, err := manifestList.Push(memoryStore)
+	digest, len, err := registry.Push(manifestList, memoryStore)
 	if err != nil {
 		return err
 	}
