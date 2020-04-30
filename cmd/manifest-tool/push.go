@@ -25,7 +25,7 @@ var pushCmd = cli.Command{
 		cli.StringFlag{
 			Name:  "type",
 			Value: "docker",
-			Usage: "image manifest type: docker (manifest list) or oci (index)",
+			Usage: "image manifest type: docker (v2.2 manifest list) or oci (v1 index)",
 		},
 	},
 	Subcommands: []cli.Command{
@@ -136,10 +136,15 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 	resolver := newResolver(c.GlobalString("username"), c.GlobalString("password"), c.GlobalBool("insecure"),
 		filepath.Join(c.GlobalString("docker-cfg"), "config.json"))
 
+	imageType := types.Docker
+	if c.GlobalString("type") == "oci" {
+		imageType = types.OCI
+	}
 	manifestList := types.ManifestList{
 		Name:      input.Image,
 		Reference: targetRef,
 		Resolver:  resolver,
+		Type:      imageType,
 	}
 	// create an in-memory store for OCI descriptors and content used during the push operation
 	memoryStore := store.NewMemoryStore()

@@ -3,12 +3,13 @@ package types
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+
+	"github.com/estesp/manifest-tool/pkg/store"
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/reference"
-	"github.com/estesp/manifest-tool/pkg/store"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -80,22 +81,26 @@ func (m ManifestList) Push(ms *store.MemoryStore) (string, int, error) {
 }
 
 func (m *ManifestList) buildManifest() (ocispec.Descriptor, []byte, error) {
-	index := ocispec.Index{
-		Versioned: specs.Versioned{
-			SchemaVersion: 2,
-		},
-	}
-	for _, man := range m.Manifests {
-		index.Manifests = append(index.Manifests, man.Descriptor)
+	var (
+		index     interface{}
+		mediaType string
+	)
+	switch m.Type {
+	case Docker:
+		index = dockerManifestList(m.Manifests)
+		mediaType = MediaTypeDockerSchema2ManifestList
+
+	case OCI:
+		index = ociIndex(m.Manifests)
+		mediaType = ocispec.MediaTypeImageIndex
 	}
 	bytes, err := json.MarshalIndent(index, "", "  ")
-	fmt.Printf("JSON index: %s\n", string(bytes))
 	if err != nil {
 		return ocispec.Descriptor{}, []byte{}, err
 	}
 	desc := ocispec.Descriptor{
 		Digest:    digest.FromBytes(bytes),
-		MediaType: ocispec.MediaTypeImageIndex,
+		MediaType: mediaType,
 		Size:      int64(len(bytes)),
 	}
 	return desc, bytes, nil
@@ -108,6 +113,40 @@ func push(ref reference.Reference, desc ocispec.Descriptor, resolver remotes.Res
 		return err
 	}
 	var wrapper func(images.Handler) images.Handler
-
 	return remotes.PushContent(ctx, pusher, desc, ms, nil, wrapper)
+}
+
+func ociIndex(m []Manifest) ocispec.Index {
+	index := ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+	}
+	for _, man := range m {
+		index.Manifests = append(index.Manifests, man.Descriptor)
+	}
+	return index
+}
+
+func dockerManifestList(m []Manifest) manifestlist.ManifestList {
+	ml := manifestlist.ManifestList{
+		Versioned: manifestlist.SchemaVersion,
+	}
+	for _, man := range m {
+		ml.Manifests = append(ml.Manifests, dockerConvert(man.Descriptor))
+	}
+	return ml
+}
+
+func dockerConvert(m ocispec.Descriptor) manifestlist.ManifestDescriptor {
+	var md manifestlist.ManifestDescriptor
+	md.Digest = m.Digest
+	md.Size = m.Size
+	md.MediaType = m.MediaType
+	md.Platform.Architecture = m.Platform.Architecture
+	md.Platform.OS = m.Platform.OS
+	md.Platform.Variant = m.Platform.Variant
+	md.Platform.OSFeatures = m.Platform.OSFeatures
+	md.Platform.OSVersion = m.Platform.OSVersion
+	return md
 }
