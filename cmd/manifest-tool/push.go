@@ -218,7 +218,7 @@ func pushManifestList(c *cli.Context, input types.YAMLInput, ignoreMissing, inse
 		return fmt.Errorf("all entries were skipped due to missing source image references; no manifest list to push")
 	}
 
-	digest, len, err := registry.Push(manifestList, memoryStore)
+	digest, len, err := registry.Push(manifestList, input.Tags, memoryStore)
 	if err != nil {
 		return err
 	}

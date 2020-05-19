@@ -19,11 +19,12 @@ import (
 )
 
 // Push performs the actions required to push content to the specified registry endpoint
-func Push(m types.ManifestList, ms *store.MemoryStore) (string, int, error) {
+func Push(m types.ManifestList, addedTags []string, ms *store.MemoryStore) (string, int, error) {
 	// push manifest references to target ref (if required)
+	baseRef := reference.TrimNamed(m.Reference)
 	for _, man := range m.Manifests {
 		if man.PushRef {
-			ref, err := reference.Parse(reference.TrimNamed(m.Reference).String() + "@" + man.Descriptor.Digest.String())
+			ref, err := reference.Parse(baseRef.String() + "@" + man.Descriptor.Digest.String())
 			if err != nil {
 				return "", 0, errors.Wrapf(err, "Error parsing reference for target manifest component push: %s", m.Reference.String())
 			}
@@ -43,6 +44,15 @@ func Push(m types.ManifestList, ms *store.MemoryStore) (string, int, error) {
 
 	if err := push(m.Reference, desc, m.Resolver, ms); err != nil {
 		return "", 0, errors.Wrapf(err, "Error pushing manifest list/index to registry: %s", desc.Digest.String())
+	}
+	for _, tag := range addedTags {
+		taggedRef, err := reference.WithTag(baseRef, tag)
+		if err != nil {
+			return "", 0, errors.Wrapf(err, "Error creating additional tag reference: %s", tag)
+		}
+		if err = push(taggedRef, desc, m.Resolver, ms); err != nil {
+			return "", 0, errors.Wrapf(err, "Error pushing additional tag reference: %s", tag)
+		}
 	}
 	return desc.Digest.String(), int(desc.Size), nil
 }
