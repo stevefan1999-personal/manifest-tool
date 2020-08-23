@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 	"github.com/estesp/manifest-tool/docker"
 	"github.com/estesp/manifest-tool/types"
 	"github.com/go-yaml/yaml"
