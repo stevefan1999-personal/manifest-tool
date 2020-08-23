@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/codegangsta/cli"
+	"github.com/urfave/cli"
 	"github.com/estesp/manifest-tool/docker"
 	"github.com/sirupsen/logrus"
 )
