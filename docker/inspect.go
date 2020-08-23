@@ -305,7 +305,18 @@ func getAuthConfig(a *types.AuthInfo, index *registryTypes.IndexInfo) (engineTyp
 	if err != nil {
 		return engineTypes.AuthConfig{}, err
 	}
-	authConfig := registry.ResolveAuthConfig(confFile.AuthConfigs, index)
+
+	var authConfigsJson []byte
+	var authConfigs = map[string]engineTypes.AuthConfig{}
+
+	if authConfigsJson, err = json.Marshal(confFile.AuthConfigs); err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(authConfigsJson, &authConfigs); err != nil {
+		panic(err)
+	}
+
+	authConfig := registry.ResolveAuthConfig(authConfigs, index)
 	logrus.Debugf("authConfig for %s: %v", index.Name, authConfig.Username)
 
 	return authConfig, nil
